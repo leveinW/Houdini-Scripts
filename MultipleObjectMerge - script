@@ -1,0 +1,35 @@
+import hou
+
+## get all nodes that are selected in a list
+selected = hou.selectedNodes()
+
+if len(selected)!=0:    
+
+    container = selected[-1].parent().path()   
+    ## parent() = "geo1"    ## path() = "/obj/geo1"
+    
+    hou.clearAllSelected()
+            
+    for index, item in enumerate(selected):     
+        new_node_name = "get_" + selected[index].name()
+        object_merge = hou.node(container).createNode("object_merge", new_node_name)     
+        
+        ##get_node_color
+        node_color = selected[index].color()
+ 
+        ##center
+        networkEditor = hou.ui.paneTabOfType(hou.paneTabType.NetworkEditor)
+        screenBounds = networkEditor.visibleBounds()
+        screenCenter = screenBounds.center()
+        
+        ##adjust position & color
+        selected_position = screenCenter + hou.Vector2(index*3, 0)    
+        object_merge.setPosition(selected_position)
+        
+        object_merge.setUserData("nodeshape", "rect")
+        object_merge.setColor(node_color)
+        
+        object_merge.parm("objpath1").set(selected[index].path())
+        object_merge.setSelected(True)
+    
+    
