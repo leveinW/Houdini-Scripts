@@ -1,0 +1,43 @@
+import hou
+
+## get all nodes that are selected in a list
+selected = hou.selectedNodes()
+
+if len(selected)!=0:    
+    hou.clearAllSelected()
+    container = selected[-1].parent().path()   
+    ## parent() = "geo1"    ## path() = "/obj/geo1"
+
+    new_node_name = "get_" + selected[-1].name()
+
+
+    ## create object merge node (at correct path)
+    object_merge = hou.node(container).createNode("object_merge", new_node_name) 
+    
+    #set color
+    node_color = selected[-1].color()
+    object_merge.setColor(node_color)
+    
+    ##set position
+    selected_position = selected[-1].position() + hou.Vector2(0, -2)
+    
+    
+    object_merge.setPosition(selected_position)
+    object_merge.setUserData("nodeshape", "rect")
+    #object_merge.setColor(hou.Color(0,0,0))
+    
+    
+    ##set object merge settings
+    num_inputs = len(selected)
+    print(num_inputs)
+    
+    object_merge.parm("numobj").set(num_inputs)
+    
+    
+    for index, item in enumerate(selected):        
+        idk = "objpath" + str(index+1) 
+        object_merge.parm(idk).set(selected[index].path())
+        object_merge.setSelected(True)
+
+else:  
+    hou.ui.displayMessage("select_something")
