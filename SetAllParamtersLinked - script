@@ -1,0 +1,29 @@
+import hou
+
+
+def set_freq():
+    selected_nodes = hou.selectedNodes()
+
+    
+    if not selected_nodes:    
+        hou.ui.displayMessage("No Node Selected")
+    else:
+        input = hou.ui.readInput("Input Name of 3+ values", buttons=("Confirm", "Cancel"))     
+        name = input[1]
+        
+        if input[0] == 0:                
+            selected = selected_nodes[0]       
+            freq_tuple = selected.parmTuple(name)       
+            base_name = freq_tuple[0].name()  # freq1
+            x = selected.parm(base_name).eval()
+    
+            for parm in freq_tuple:
+                parm.setExpression(f'ch("{base_name}")', language=hou.exprLanguage.Hscript)
+            
+            
+            selected.parm(base_name).deleteAllKeyframes()   
+            selected.parm(base_name).set(x)     
+            
+          
+set_freq()        
+

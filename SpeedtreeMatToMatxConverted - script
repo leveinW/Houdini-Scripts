@@ -1,0 +1,143 @@
+import hou
+import voptoolutils
+
+selected_nodes_list = hou.selectedNodes()
+
+#create karmamaterial subnetwork   
+mat_libraryname = "MTLX_SPEEDTREE"
+mat_network = hou.node("/stage").createNode("materiallibrary", mat_libraryname)   
+
+#create assign material node
+mat_network_assign = hou.node("/stage").createNode("assignmaterial", "levin")   
+mat_network_assign.setInput(0, mat_network)
+
+##adjust position & color    
+##center
+networkEditor = hou.ui.paneTabOfType(hou.paneTabType.NetworkEditor)
+screenBounds = networkEditor.visibleBounds()
+screenCenter = screenBounds.center()
+screenCenter = screenBounds.center()    
+selected_position = screenCenter + hou.Vector2(0, -1)    
+mat_network_assign.setPosition(selected_position)
+
+
+
+
+
+
+for index, item in enumerate(selected_nodes_list):  
+     
+    #get texture info   
+    albedo_texture = item.parm("ColorMap").eval()
+    roughness_texture = item.parm("GlossMap").eval()
+    normal_texture = item.parm("NormalMap").eval()
+    opacity_texture = item.parm("OpacityMap").eval()
+    subsurface_color_texture = item.parm("SubsurfaceMap").eval()
+    subsurface_amount_texture = item.parm("SubsurfaceAmountMap").eval()
+    
+
+        
+    
+    
+    
+    
+    ##adjust position & color    
+    ##center
+    networkEditor = hou.ui.paneTabOfType(hou.paneTabType.NetworkEditor)
+    screenBounds = networkEditor.visibleBounds()
+    screenCenter = screenBounds.center()
+    screenCenter = screenBounds.center()    
+    selected_position = screenCenter + hou.Vector2(index*3, 0)    
+    mat_network.setPosition(selected_position)
+       
+    #create karmamaterial_subnet
+    karmamaterial_name = selected_nodes_list[index].name()
+    mask = voptoolutils.KARMAMTLX_TAB_MASK
+    voptoolutils._setupMtlXBuilderSubnet(destination_node=mat_network, name=karmamaterial_name, mask=mask, folder_label='Karma Material Builder')
+    
+    #mat path  
+    path_inside_matnetwork = mat_network.path() + "/" + karmamaterial_name
+   
+    #standart_surface_node
+    standard_surface_node_path = path_inside_matnetwork + "/" + "mtlxstandard_surface"
+    standard_surface_node = hou.node(standard_surface_node_path)
+  
+    #create tileable uvs
+    uv_texcoord = hou.node(path_inside_matnetwork).createNode("mtlxtexcoord")
+    uv_mult = hou.node(path_inside_matnetwork).createNode("mtlxmultiply")
+        
+    #create Albedo  
+    albedo_node = hou.node(path_inside_matnetwork).createNode("mtlximage", "ALBEDO")   
+    standard_surface_node.setInput(1, albedo_node)
+    albedo_node.parm("file").set(albedo_texture)
+    albedo_node.setInput(3, uv_mult)
+    
+    
+
+    if subsurface_color_texture != "":
+        #create SubsurfaceColorMap
+        ssColor_node = hou.node(path_inside_matnetwork).createNode("mtlximage", "SubsurfaceColor")   
+        standard_surface_node.setNamedInput("subsurface_color", ssColor_node, 0)
+        ssColor_node.parm("file").set(subsurface_color_texture)
+        ssColor_node.setInput(3, uv_mult)
+    
+        #create SubsurfaceAmountMap
+        ssAmount_node = hou.node(path_inside_matnetwork).createNode("mtlximage", "SubsurfaceAmount")   
+        standard_surface_node.setNamedInput("subsurface_scale", ssAmount_node, 0)
+        ssAmount_node.parm("signature").set("Float")  
+        ssAmount_node.parm("file").set(subsurface_amount_texture)
+        ssAmount_node.setInput(3, uv_mult)
+ 
+    #create Roughness  
+    roughness_node = hou.node(path_inside_matnetwork).createNode("mtlximage", "ROUGHNESS")   
+    standard_surface_node.setInput(6, roughness_node)
+    roughness_node.parm("signature").set("Float")  
+    roughness_node.parm("file").set(roughness_texture)
+    roughness_node.setInput(3, uv_mult)
+    
+    #inverse Roughness
+    roughness_inverse_node = hou.node(path_inside_matnetwork).createNode("mtlxinvert", "ROUGHNESS")
+    standard_surface_node.setInput(6, roughness_inverse_node)
+    roughness_inverse_node.setInput(0, roughness_node)
+   
+    #create Opacity
+    #check if opacity exists
+    if opacity_texture != "":
+        opacity_node = hou.node(path_inside_matnetwork).createNode("mtlximage", "OPACITY")   
+        standard_surface_node.setInput(38, opacity_node)
+        opacity_node.parm("signature").set("vector3")  
+        opacity_node.parm("file").set(opacity_texture)
+        opacity_node.setInput(3, uv_mult)
+    
+  #create Normal  
+    normal_node = hou.node(path_inside_matnetwork).createNode("mtlximage", "NORMAL_MAP")
+    normal_mtlx_node = hou.node(path_inside_matnetwork).createNode("mtlxnormalmap")
+    normal_node.parm("signature").set("vector3")
+    normal_node.parm("file").set(normal_texture)
+    normal_node.setInput(3, uv_mult)   
+    
+    normal_mtlx_node.setInput(0, normal_node)
+    standard_surface_node.setInput(40, normal_mtlx_node)
+    
+    uv_mult.setInput(0, uv_texcoord)      
+    hou.node(path_inside_matnetwork).layoutChildren() 
+ 
+    
+    
+
+hou.node("/stage/" + mat_libraryname).layoutChildren()    
+
+#create correct amount of parameters
+num_inputs = len(selected_nodes_list)
+mat_network_assign.parm("nummaterials").set(num_inputs)
+
+#foreach paramter number
+for index, item in enumerate(selected_nodes_list):
+    primpatternID = "primpattern" + str(index+1) 
+    mat_network_assign.parm(primpatternID).set(selected_nodes_list[index].name())
+    
+    matpatternID = "matspecpath" + str(index+1)
+    mat_network_assign.parm(matpatternID).set("/materials/" + selected_nodes_list[index].name())
+    
+
+    
